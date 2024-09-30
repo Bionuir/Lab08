@@ -8,6 +8,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -69,36 +73,68 @@ fun TaskScreen(viewModel: TaskViewModel) {
     val tasks by viewModel.tasks.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     var newTaskDescription by remember { mutableStateOf("") }
-
+    var editingTask by remember { mutableStateOf<Task?>(null) }
+    var editedDescription by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        TextField(
-            value = newTaskDescription,
-            onValueChange = { newTaskDescription = it },
-            label = { Text("Nueva tarea") },
-            modifier = Modifier.fillMaxWidth()
-        )
+        if (editingTask == null) {
+            // Campo para agregar una nueva tarea
+            TextField(
+                value = newTaskDescription,
+                onValueChange = { newTaskDescription = it },
+                label = { Text("Nueva tarea") },
+                modifier = Modifier.fillMaxWidth()
+            )
 
+            Button(
+                onClick = {
+                    if (newTaskDescription.isNotEmpty()) {
+                        viewModel.addTask(newTaskDescription)
+                        newTaskDescription = ""
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            ) {
+                Text("Agregar tarea")
+            }
+        } else {
+            // Campo para editar una tarea existente
+            TextField(
+                value = editedDescription,
+                onValueChange = { editedDescription = it },
+                label = { Text("Editar tarea") },
+                modifier = Modifier.fillMaxWidth()
+            )
 
-        Button(
-            onClick = {
-                if (newTaskDescription.isNotEmpty()) {
-                    viewModel.addTask(newTaskDescription)
-                    newTaskDescription = ""
-                }
-            },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-        ) {
-            Text("Agregar tarea")
+            Button(
+                onClick = {
+                    editingTask?.let {
+                        viewModel.updateTask(it.copy(description = editedDescription))
+                        editingTask = null
+                        editedDescription = ""
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            ) {
+                Text("Guardar cambios")
+            }
+
+            Button(
+                onClick = {
+                    editingTask = null
+                    editedDescription = ""
+                },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            ) {
+                Text("Cancelar")
+            }
         }
 
-
         Spacer(modifier = Modifier.height(16.dp))
-
 
         tasks.forEach { task ->
             Row(
@@ -106,12 +142,24 @@ fun TaskScreen(viewModel: TaskViewModel) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(text = task.description)
-                Button(onClick = { viewModel.toggleTaskCompletion(task) }) {
-                    Text(if (task.isCompleted) "Completada" else "Pendiente")
+
+                Row {
+                    IconButton(onClick = { viewModel.toggleTaskCompletion(task) }) {
+                        Icon(
+                            imageVector = if (task.isCompleted) Icons.Default.Close else Icons.Default.Check,
+                            contentDescription = if (task.isCompleted) "Marcar como pendiente" else "Marcar como completada"
+                        )
+                    }
+
+                    IconButton(onClick = {
+                        editingTask = task
+                        editedDescription = task.description
+                    }) {
+                        Icon(imageVector = Icons.Default.Edit, contentDescription = "Editar tarea")
+                    }
                 }
             }
         }
-
 
         Button(
             onClick = { coroutineScope.launch { viewModel.deleteAllTasks() } },
